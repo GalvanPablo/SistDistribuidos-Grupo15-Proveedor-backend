@@ -16,13 +16,13 @@ import org.springframework.web.bind.annotation.GetMapping;
 
 
 @RestController
-@RequestMapping()
+@RequestMapping("/Color")
 @CrossOrigin(origins = "*", allowedHeaders = "*", methods = {RequestMethod.GET, RequestMethod.POST, RequestMethod.PUT, RequestMethod.DELETE})
 public class ColorController {
     @Autowired
     private ColorService colorService;
 
-    @GetMapping("/colores")
+    @GetMapping("/TraeColores")
     public ResponseEntity<List<Color>> getColores() {
         return ResponseEntity.ok(colorService.traerColores());
     }
