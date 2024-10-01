@@ -1,10 +1,17 @@
 package com.proveedor.services;
 
+import java.util.List;
+import java.util.stream.Collectors;
+
+import org.modelmapper.ModelMapper;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 
 import com.proveedor.dto.request.ProductoRequest;
+import com.proveedor.dto.response.DisponibilidadResponse;
+import com.proveedor.dto.response.ProductoDetalleResponse;
+import com.proveedor.dto.response.ProductoResponse;
 import com.proveedor.entities.Color;
 import com.proveedor.entities.Producto;
 import com.proveedor.entities.Stock;
@@ -30,7 +37,9 @@ public class ProductoService {
     @Autowired
     private IColorRepository colorRepository;
 
-    public Producto altaProducto(ProductoRequest request){
+    private final ModelMapper mapper = new ModelMapper();
+
+    public ProductoResponse altaProducto(ProductoRequest request){
         Producto producto = new Producto();
         producto.setCodigo(request.getCodigo());
         producto.setNombre(request.getNombre());
@@ -49,7 +58,31 @@ public class ProductoService {
             stockRepository.save(stock);
         }
 
-        return producto;
+        ProductoResponse response = mapper.map(producto, ProductoResponse.class);
+        return response;
+    }
+
+    public List<ProductoResponse> traerProductos(){
+        return productoRepository.findAll().stream().map(producto -> mapper.map(producto, ProductoResponse.class)).collect(Collectors.toList());
+    }
+
+    public ProductoDetalleResponse detalleProducto(Long idProducto){
+        Producto producto = productoRepository.findById(idProducto).orElseThrow(() -> new CustomException("Producto no encontrado", HttpStatus.NOT_FOUND));
+        
+        List<Stock> stocks = stockRepository.findByProductoId(idProducto);
+        ProductoDetalleResponse response = mapper.map(producto, ProductoDetalleResponse.class);
+
+        List<DisponibilidadResponse> disponibilidades = stocks.stream().map(stock -> {
+            DisponibilidadResponse disponibilidad = new DisponibilidadResponse();
+            disponibilidad.setIdTalle(stock.getTalle().getId());
+            disponibilidad.setIdColor(stock.getColor().getId());
+            disponibilidad.setCantidad(stock.getCantidad());
+            return disponibilidad;
+        }).collect(Collectors.toList());
+
+        response.setDisponibles(disponibilidades);
+
+        return response;
     }
 
     
