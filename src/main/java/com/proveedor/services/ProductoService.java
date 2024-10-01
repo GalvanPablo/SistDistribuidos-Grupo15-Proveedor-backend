@@ -9,6 +9,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 
 import com.proveedor.dto.request.ProductoRequest;
+import com.proveedor.dto.request.StockUpdateRequest;
 import com.proveedor.dto.response.DisponibilidadResponse;
 import com.proveedor.dto.response.ProductoDetalleResponse;
 import com.proveedor.dto.response.ProductoResponse;
@@ -85,5 +86,12 @@ public class ProductoService {
         return response;
     }
 
+    public String actualizarStock(Long idProducto, StockUpdateRequest request){
+        Stock stock = stockRepository.findByProductoIdAndTalleIdAndColorId(idProducto, request.getIdTalle(), request.getIdColor()).orElseThrow(() -> new CustomException("Stock no encontrado", HttpStatus.NOT_FOUND));
+
+        stock.setCantidad(request.getCantidad());
+        stockRepository.save(stock);
+        return "Stock actualizado correctamente";
+    }
     
 }
