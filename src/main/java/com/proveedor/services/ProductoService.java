@@ -6,6 +6,7 @@ import java.util.stream.Collectors;
 import org.modelmapper.ModelMapper;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
+import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 
 import com.proveedor.dto.request.ProductoRequest;
@@ -23,6 +24,9 @@ import com.proveedor.repositories.IProductoRepository;
 import com.proveedor.repositories.IStockRepository;
 import com.proveedor.repositories.ITalleRepository;
 
+import lombok.extern.slf4j.Slf4j;
+
+@Slf4j
 @Service
 public class ProductoService {
 
@@ -39,6 +43,9 @@ public class ProductoService {
     private IColorRepository colorRepository;
 
     private final ModelMapper mapper = new ModelMapper();
+
+    @Autowired
+    private KafkaTemplate<String, String> kafkaTemplate;
 
     public ProductoResponse altaProducto(ProductoRequest request){
         Producto producto = new Producto();
@@ -58,6 +65,10 @@ public class ProductoService {
             stock.setCantidad(0);
             stockRepository.save(stock);
         }
+
+        String mensaje = String.format("Codigo: %s, Nombre: %s, Url: %s, Disponibilidad: %s", producto.getCodigo(), producto.getNombre(), producto.getUrl(), request.getDisponibles());
+        kafkaTemplate.send("novedades", mensaje);
+        log.info("Productor mensaje enviado a Kafka: {}", mensaje);
 
         ProductoResponse response = mapper.map(producto, ProductoResponse.class);
         return response;

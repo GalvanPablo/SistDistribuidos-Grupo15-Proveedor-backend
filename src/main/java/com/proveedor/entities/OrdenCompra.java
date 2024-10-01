@@ -23,7 +23,7 @@ public class OrdenCompra {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
     
-    private Long idTienda;
+    private String codigoTienda;
     private String estado;
     private String observaciones;
     
