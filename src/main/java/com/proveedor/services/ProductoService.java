@@ -1,6 +1,9 @@
 package com.proveedor.services;
 
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 import org.modelmapper.ModelMapper;
@@ -9,6 +12,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.proveedor.dto.request.ProductoRequest;
 import com.proveedor.dto.request.StockUpdateRequest;
 import com.proveedor.dto.response.DisponibilidadResponse;
@@ -42,37 +47,64 @@ public class ProductoService {
     @Autowired
     private IColorRepository colorRepository;
 
+    @Autowired
+    private ObjectMapper objectMapper;
+
     private final ModelMapper mapper = new ModelMapper();
 
     @Autowired
     private KafkaTemplate<String, String> kafkaTemplate;
 
-    public ProductoResponse altaProducto(ProductoRequest request){
-        Producto producto = new Producto();
-        producto.setCodigo(request.getCodigo());
-        producto.setNombre(request.getNombre());
-        producto.setUrl(request.getUrl());
-        productoRepository.save(producto);
+public ProductoResponse altaProducto(ProductoRequest request) {
+    Producto producto = new Producto();
+    producto.setCodigo(request.getCodigo());
+    producto.setNombre(request.getNombre());
+    producto.setUrl(request.getUrl());
+    productoRepository.save(producto);
 
-        for(ProductoRequest.Disponibilidad disponibilidad : request.getDisponibles()){
-            Talle talle = talleRepository.findById(disponibilidad.getIdTalle()).orElseThrow(() -> new CustomException("Talle no encontrado", HttpStatus.BAD_REQUEST));
-            Color color = colorRepository.findById(disponibilidad.getIdColor()).orElseThrow(() -> new CustomException("Color no encontrado", HttpStatus.BAD_REQUEST));
+    List<Map<String, Long>> disponibilidadList = new ArrayList<>();
 
-            Stock stock = new Stock();
-            stock.setProducto(producto);
-            stock.setTalle(talle);
-            stock.setColor(color);
-            stock.setCantidad(0);
-            stockRepository.save(stock);
-        }
+    for (ProductoRequest.Disponibilidad disponibilidad : request.getDisponibles()) {
+        Talle talle = talleRepository.findById(disponibilidad.getIdTalle())
+            .orElseThrow(() -> new CustomException("Talle no encontrado", HttpStatus.BAD_REQUEST));
+        Color color = colorRepository.findById(disponibilidad.getIdColor())
+            .orElseThrow(() -> new CustomException("Color no encontrado", HttpStatus.BAD_REQUEST));
 
-        String mensaje = String.format("Codigo: %s, Nombre: %s, Url: %s, Disponibilidad: %s", producto.getCodigo(), producto.getNombre(), producto.getUrl(), request.getDisponibles());
-        kafkaTemplate.send("novedades", mensaje);
-        log.info("Productor mensaje enviado a Kafka: {}", mensaje);
+        Stock stock = new Stock();
+        stock.setProducto(producto);
+        stock.setTalle(talle);
+        stock.setColor(color);
+        stock.setCantidad(0);
+        stockRepository.save(stock);
 
-        ProductoResponse response = mapper.map(producto, ProductoResponse.class);
-        return response;
+        // Construir un mapa de disponibilidades para agregar a la lista
+        Map<String, Long> disponibilidadProducto = new HashMap<>();
+        disponibilidadProducto.put("idTalle", disponibilidad.getIdTalle());
+        disponibilidadProducto.put("idColor", disponibilidad.getIdColor());
+        disponibilidadList.add(disponibilidadProducto);
     }
+
+    // Crear un objeto ProductoNovedades para enviar como JSON
+    Map<String, Object> productoNovedades = new HashMap<>();
+    productoNovedades.put("codigo", producto.getCodigo());
+    productoNovedades.put("nombre", producto.getNombre());
+    productoNovedades.put("url", producto.getUrl());
+    productoNovedades.put("disponibilidad", disponibilidadList);
+
+    // Serializar el objeto a JSON y enviarlo a Kafka
+    String mensaje;
+    try {
+        mensaje = objectMapper.writeValueAsString(productoNovedades);
+    } catch (JsonProcessingException e) {
+        throw new CustomException("Error al procesar el producto", HttpStatus.INTERNAL_SERVER_ERROR);
+    }
+
+    kafkaTemplate.send("novedades", mensaje);
+    log.info("Productor mensaje enviado a Kafka: {}", mensaje);
+
+    ProductoResponse response = mapper.map(producto, ProductoResponse.class);
+    return response;
+}
 
     public List<ProductoResponse> traerProductos(){
         return productoRepository.findAll().stream().map(producto -> mapper.map(producto, ProductoResponse.class)).collect(Collectors.toList());
