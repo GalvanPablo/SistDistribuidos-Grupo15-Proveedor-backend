@@ -14,7 +14,7 @@ public class ProductoRequest {
     
     @Data
     public static class Disponibilidad {
-        private Long idTalle;
-        private Long idColor;
+        private String Talle;
+        private String Color;
     }
 }
