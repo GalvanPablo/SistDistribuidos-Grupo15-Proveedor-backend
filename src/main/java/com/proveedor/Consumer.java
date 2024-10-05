@@ -10,9 +10,13 @@ import org.springframework.stereotype.Service;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.proveedor.dto.request.ItemOrdenCompraRequest;
+import com.proveedor.dto.request.OrdenCompraRequest;
+import com.proveedor.entities.Color;
 import com.proveedor.entities.ItemOrdenCompra;
 import com.proveedor.entities.OrdenCompra;
 import com.proveedor.entities.Producto;
+import com.proveedor.entities.Talle;
 import com.proveedor.exceptions.CustomException;
 import com.proveedor.repositories.IColorRepository;
 import com.proveedor.repositories.IOrdenCompraRepository;
@@ -40,52 +44,51 @@ public class Consumer {
     @Autowired
     private ITalleRepository talleRepository;
 
-    private List<String> ordenes = new ArrayList<>();
-
     @KafkaListener(topics = "orden-de-compra")
     public void traerOrdenesDeCompra(String mensaje) {
         log.info(mensaje);
-            ordenes.add(mensaje);
-
-            guardarOrdenesDeCompra();
+        guardarOrdenDeCompra(mensaje);
     }
 
-    public void guardarOrdenesDeCompra() {
-        for (String mensaje : ordenes) {
-            try {
-                OrdenCompra orden = objectMapper.readValue(mensaje, OrdenCompra.class);
+    public void guardarOrdenDeCompra(String mensaje) {
+        try {
+            OrdenCompraRequest ordenDTO = objectMapper.readValue(mensaje, OrdenCompraRequest.class);
 
-                OrdenCompra ordenCompra = new OrdenCompra();
-                ordenCompra.setCodigoTienda(orden.getCodigoTienda());
-                ordenCompra.setFechaSolicitud(orden.getFechaSolicitud());
-                ordenCompra.setEstado("SOLICITADA");
+            OrdenCompra ordenCompra = new OrdenCompra();
+            ordenCompra.setCodigoTienda(ordenDTO.getCodigoTienda());
+            ordenCompra.setFechaSolicitud(ordenDTO.getFechaSolicitud());
+            ordenCompra.setEstado("SOLICITADA");
 
-                List<ItemOrdenCompra> items = new ArrayList<>();
+            List<ItemOrdenCompra> items = new ArrayList<>();
 
-                for (ItemOrdenCompra item : orden.getItems()) {
-                    Producto producto = productoRepository.findByCodigo(item.getProducto().getCodigo())
-                            .orElseThrow(() -> new CustomException("Producti no encontrado", HttpStatus.NOT_FOUND));
-                    //Color color = colorRepository.findByNombre("hoal")
-                      //      .orElseThrow(() -> new CustomException("Color no encontrado", HttpStatus.NOT_FOUND)); 
-                    //Talle talle = talleRepository.findByNombre("hola")
-                      //      .orElseThrow(() -> new CustomException("Talle no encontrado", HttpStatus.NOT_FOUND));            
-                    ItemOrdenCompra itemOrdenCompra = new ItemOrdenCompra();
-                    itemOrdenCompra.setOrdenDeCompra(ordenCompra);
-                    itemOrdenCompra.setProducto(producto);
-                    itemOrdenCompra.setCantidad(item.getCantidad());
-                    itemOrdenCompra.setColor(item.getColor());
-                    itemOrdenCompra.setTalle(item.getTalle());
+            for (ItemOrdenCompraRequest itemDTO : ordenDTO.getItems()) {
+                Producto producto = productoRepository.findByCodigo(itemDTO.getCodigoProducto())
+                        .orElseThrow(() -> new CustomException("Producto no encontrado", HttpStatus.NOT_FOUND));
 
-                    items.add(itemOrdenCompra);
+                ItemOrdenCompra itemOrdenCompra = new ItemOrdenCompra();
+                itemOrdenCompra.setOrdenDeCompra(ordenCompra);
+                itemOrdenCompra.setProducto(producto);
+                itemOrdenCompra.setCantidad(itemDTO.getCantidad());
+
+                if (itemDTO.getColor() != null) {
+                    Color color = colorRepository.findByNombre(itemDTO.getColor())
+                            .orElseThrow(() -> new CustomException("Color no encontrado", HttpStatus.NOT_FOUND));
+                    itemOrdenCompra.setColor(color);
                 }
-                ordenCompra.setItems(items);
-                ordenCompraRepository.save(ordenCompra);
-            } catch (JsonProcessingException e) {
-                log.error(e.getMessage());
-            }
-        }
-        ordenes.clear();
-    }
 
-    
+                if (itemDTO.getTalle() != null) {
+                    Talle talle = talleRepository.findByNombre(itemDTO.getTalle())
+                            .orElseThrow(() -> new CustomException("Talle no encontrado", HttpStatus.NOT_FOUND));
+                    itemOrdenCompra.setTalle(talle);
+                }
+
+                items.add(itemOrdenCompra);
+            }
+
+            ordenCompra.setItems(items);
+            ordenCompraRepository.save(ordenCompra);
+        } catch (JsonProcessingException e) {
+            log.error(e.getMessage());
+        }
+    }
 }
