@@ -65,9 +65,9 @@ public class ProductoService {
         List<Map<String, String>> disponibilidadList = new ArrayList<>();
 
         for (ProductoRequest.Disponibilidad disponibilidad : request.getDisponibles()) {
-            Talle talle = talleRepository.findByNombre(disponibilidad.getTalle())
+            Talle talle = talleRepository.findById(disponibilidad.getTalleId())
                     .orElseThrow(() -> new CustomException("Talle no encontrado", HttpStatus.BAD_REQUEST));
-            Color color = colorRepository.findByNombre(disponibilidad.getColor())
+            Color color = colorRepository.findById(disponibilidad.getColorId())
                     .orElseThrow(() -> new CustomException("Color no encontrado", HttpStatus.BAD_REQUEST));
 
             Stock stock = new Stock();
@@ -78,8 +78,8 @@ public class ProductoService {
             stockRepository.save(stock);
 
             Map<String, String> disponibilidadProducto = new HashMap<>();
-            disponibilidadProducto.put("Talle", disponibilidad.getTalle());
-            disponibilidadProducto.put("Color", disponibilidad.getColor());
+            disponibilidadProducto.put("Talle", talle.getNombre());
+            disponibilidadProducto.put("Color", color.getNombre());
             disponibilidadList.add(disponibilidadProducto);
         }
 
