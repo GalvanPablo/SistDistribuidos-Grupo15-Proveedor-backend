@@ -38,9 +38,9 @@ public class ProductoController {
         return ResponseEntity.ok(productoService.traerProductos());
     }
 
-    @GetMapping("/{idProducto}")
-    public ResponseEntity<?> traerDetalleProducto(@PathVariable Long idProducto){
-        return ResponseEntity.ok(productoService.detalleProducto(idProducto));
+    @GetMapping("/{codigoProducto}")
+    public ResponseEntity<?> traerDetalleProducto(@PathVariable String codigoProducto){
+        return ResponseEntity.ok(productoService.detalleProducto(codigoProducto));
     }
 
     // PARA ACTUALIZAR EL STOCK MACHEA EL ID PRODUCTO + ID TALLE + ID COLOR Y SOLO SE ACTUALIZA LA CANTIDAD

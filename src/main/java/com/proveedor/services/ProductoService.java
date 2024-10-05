@@ -107,16 +107,18 @@ public class ProductoService {
         return productoRepository.findAll().stream().map(producto -> mapper.map(producto, ProductoResponse.class)).collect(Collectors.toList());
     }
 
-    public ProductoDetalleResponse detalleProducto(Long idProducto) {
-        Producto producto = productoRepository.findById(idProducto).orElseThrow(() -> new CustomException("Producto no encontrado", HttpStatus.NOT_FOUND));
+    public ProductoDetalleResponse detalleProducto(String codigoProducto) {
+        Producto producto = productoRepository.findByCodigo(codigoProducto).orElseThrow(() -> new CustomException("Producto no encontrado", HttpStatus.NOT_FOUND));
 
-        List<Stock> stocks = stockRepository.findByProductoId(idProducto);
+        List<Stock> stocks = stockRepository.findByProductoId(producto.getId());
         ProductoDetalleResponse response = mapper.map(producto, ProductoDetalleResponse.class);
 
         List<DisponibilidadResponse> disponibilidades = stocks.stream().map(stock -> {
             DisponibilidadResponse disponibilidad = new DisponibilidadResponse();
             disponibilidad.setIdTalle(stock.getTalle().getId());
+            disponibilidad.setTalleNombre(stock.getTalle().getNombre());
             disponibilidad.setIdColor(stock.getColor().getId());
+            disponibilidad.setColorNombre(stock.getColor().getNombre());
             disponibilidad.setCantidad(stock.getCantidad());
             return disponibilidad;
         }).collect(Collectors.toList());
