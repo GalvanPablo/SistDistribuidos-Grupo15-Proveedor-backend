@@ -45,7 +45,7 @@ public class ProductoController {
 
     // PARA ACTUALIZAR EL STOCK MACHEA EL ID PRODUCTO + ID TALLE + ID COLOR Y SOLO SE ACTUALIZA LA CANTIDAD
     @PutMapping("/{idProducto}/actualizar/stock")
-    public ResponseEntity<?> actualizarStock(@PathVariable Long idProducto, StockUpdateRequest request){
+    public ResponseEntity<?> actualizarStock(@PathVariable Long idProducto, @RequestBody StockUpdateRequest request){
         return ResponseEntity.ok(productoService.actualizarStock(idProducto, request));
     }
     
