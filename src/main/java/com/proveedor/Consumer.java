@@ -2,7 +2,6 @@ package com.proveedor;
 
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
-import java.util.Calendar;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
@@ -186,18 +185,16 @@ public class Consumer {
     private void aprobarOrdenYDespachar(OrdenCompra ordenCompra) {
         log.info("LLEGUE AL EMVIAR ACEPTADO Y SE DESPACHA");
         OrdenDespacho ordenDespacho = new OrdenDespacho();
-        Calendar caldendar = Calendar.getInstance();
-        caldendar.add(Calendar.DATE, 5);
-        ordenDespacho.setFechaEstimadaDeEnvio(caldendar.getTime());
+        Date fecha = ordenCompra.getFechaSolicitud();
+        ordenDespacho.setFechaEstimadaDeEnvio(fecha);
         ordenCompra.setOrdenDeDespacho(ordenDespacho);
         ordenDespacho = ordenDespachoRepository.save(ordenDespacho);
 
         Map<String, Object> despacho = new HashMap<>();
         despacho.put("idOrdenDespacho", ordenDespacho.getId());
         despacho.put("idOrdenCompra", ordenCompra.getId());
-        Date soloFecha = caldendar.getTime();
         SimpleDateFormat formateo = new SimpleDateFormat("yyyy-MM-dd");
-        despacho.put("fechaEstimadaEnvio", formateo.format(soloFecha));
+        despacho.put("fechaEstimadaEnvio", formateo.format(fecha));
 
         String mensajeDespacho;
         try {
