@@ -28,6 +28,7 @@ import com.proveedor.entities.Talle;
 import com.proveedor.exceptions.CustomException;
 import com.proveedor.repositories.IColorRepository;
 import com.proveedor.repositories.IOrdenCompraRepository;
+import com.proveedor.repositories.IOrdenDespachoRepository;
 import com.proveedor.repositories.IProductoRepository;
 import com.proveedor.repositories.IStockRepository;
 import com.proveedor.repositories.ITalleRepository;
@@ -57,6 +58,9 @@ public class Consumer {
     private IStockRepository stockRepository;
 
     @Autowired
+    private IOrdenDespachoRepository ordenDespachoRepository;
+
+    @Autowired
     private KafkaTemplate<String, String> kafkaTemplate;
 
     @KafkaListener(topics = "orden-de-compra")
@@ -69,6 +73,7 @@ public class Consumer {
         try {
             OrdenCompraRequest ordenRequest = objectMapper.readValue(mensaje, OrdenCompraRequest.class);
             OrdenCompra ordenCompra = new OrdenCompra();
+            ordenCompra.setId(ordenRequest.getIdOrden());
             ordenCompra.setCodigoTienda(ordenRequest.getCodigoTienda());
             ordenCompra.setFechaSolicitud(ordenRequest.getFechaSolicitud());
 
@@ -116,7 +121,7 @@ public class Consumer {
                 ).orElse(null);
 
                 if (stock == null || stock.getCantidad() < itemRequest.getCantidad()) {
-                    faltantesStock.add("Artículo " + itemRequest.getCodigoProducto() + ": stock insuficiente.");
+                    faltantesStock.add("Producto " + itemRequest.getCodigoProducto() + ": stock insuficiente.");
                 }
 
                 items.add(itemOrdenCompra);
@@ -146,20 +151,46 @@ public class Consumer {
 
     private void rechazarOrden(OrdenCompra ordenCompra, List<String> errores) {
         log.info("LLEGUE AL EMVIAR RECHAZADO");
+        Map<String, Object> solicitud = new HashMap<>();
+        solicitud.put("codigoTienda", ordenCompra.getCodigoTienda());
+        solicitud.put("idOrdenCompra", ordenCompra.getId());
+        solicitud.put("estado", "RECHAZADA");
+        solicitud.put("observaciones", String.join(", ", errores));
+
+        String mensajeSolicitud;
+        try {
+            mensajeSolicitud = objectMapper.writeValueAsString(solicitud);
+        } catch (JsonProcessingException e) {
+            throw new CustomException("Error al procesar la orden", HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+        kafkaTemplate.send("solicitudes", mensajeSolicitud);
     }
 
     private void pausarOrden(OrdenCompra ordenCompra, List<String> faltantesStock) {
         log.info("LLEGUE AL EMVIAR ACEPTADO PERO SE PAUSA");
+        Map<String, Object> solicitud = new HashMap<>();
+        solicitud.put("codigoTienda", ordenCompra.getCodigoTienda());
+        solicitud.put("idOrdenCompra", ordenCompra.getId());
+        solicitud.put("estado", "PAUSADA");
+        solicitud.put("observaciones", String.join(", ", faltantesStock));
+
+        String mensajeSolicitud;
+        try {
+            mensajeSolicitud = objectMapper.writeValueAsString(solicitud);
+        } catch (JsonProcessingException e) {
+            throw new CustomException("Error al procesar la orden", HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+        kafkaTemplate.send("solicitudes", mensajeSolicitud);
     }
 
     private void aprobarOrdenYDespachar(OrdenCompra ordenCompra) {
         log.info("LLEGUE AL EMVIAR ACEPTADO Y SE DESPACHA");
-
         OrdenDespacho ordenDespacho = new OrdenDespacho();
         Calendar caldendar = Calendar.getInstance();
-        caldendar.add(Calendar.DATE,5);
+        caldendar.add(Calendar.DATE, 5);
         ordenDespacho.setFechaEstimadaDeEnvio(caldendar.getTime());
         ordenCompra.setOrdenDeDespacho(ordenDespacho);
+        ordenDespacho = ordenDespachoRepository.save(ordenDespacho);
 
         Map<String, Object> despacho = new HashMap<>();
         despacho.put("idOrdenDespacho", ordenDespacho.getId());
@@ -168,12 +199,25 @@ public class Consumer {
         SimpleDateFormat formateo = new SimpleDateFormat("yyyy-MM-dd");
         despacho.put("fechaEstimadaEnvio", formateo.format(soloFecha));
 
-        String mensaje;
+        String mensajeDespacho;
         try {
-            mensaje = objectMapper.writeValueAsString(despacho);
+            mensajeDespacho = objectMapper.writeValueAsString(despacho);
         } catch (JsonProcessingException e) {
             throw new CustomException("Error al procesar el despacho", HttpStatus.INTERNAL_SERVER_ERROR);
         }
-        kafkaTemplate.send("despacho", mensaje);
+        kafkaTemplate.send("despacho", mensajeDespacho);
+
+        Map<String, Object> solicitud = new HashMap<>();
+        solicitud.put("codigoTienda", ordenCompra.getCodigoTienda());
+        solicitud.put("estado", ordenCompra.getEstado());
+        solicitud.put("idOrdenCompra", ordenCompra.getId());
+
+        String mensajeSolicitud;
+        try {
+            mensajeSolicitud = objectMapper.writeValueAsString(solicitud);
+        } catch (JsonProcessingException e) {
+            throw new CustomException("Error al procesar la solicitud", HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+        kafkaTemplate.send("solicitudes", mensajeSolicitud);
     }
 }
