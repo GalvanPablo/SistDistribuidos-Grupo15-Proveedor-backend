@@ -153,7 +153,7 @@ public class ProductoService {
 
             for (ItemOrdenCompra item : ordenCompra.getItems()) {
                 Stock itemStock = stockRepository.findByProductoIdAndTalleIdAndColorId(
-                        item.getProducto().getId(), item.getTalle().getId(), item.getColor().getId()).orElse(null);
+                        item.getProducto().getId(), item.getTalle().getId(), item.getColor().getId()).orElseThrow(() -> new CustomException("Item no encontrado", HttpStatus.NOT_FOUND));
 
                 if (itemStock == null || itemStock.getCantidad() < item.getCantidad()) {
                     puedeCumplir = false;
