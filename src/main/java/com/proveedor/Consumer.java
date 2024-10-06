@@ -182,7 +182,7 @@ public class Consumer {
         kafkaTemplate.send("solicitudes", mensajeSolicitud);
     }
 
-    private void aprobarOrdenYDespachar(OrdenCompra ordenCompra) {
+    public void aprobarOrdenYDespachar(OrdenCompra ordenCompra) {
         log.info("LLEGUE AL EMVIAR ACEPTADO Y SE DESPACHA");
         OrdenDespacho ordenDespacho = new OrdenDespacho();
         Date fecha = ordenCompra.getFechaSolicitud();

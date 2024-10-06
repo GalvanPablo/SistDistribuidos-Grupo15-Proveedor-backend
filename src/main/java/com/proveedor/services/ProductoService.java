@@ -14,17 +14,21 @@ import org.springframework.stereotype.Service;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.proveedor.Consumer;
 import com.proveedor.dto.request.ProductoRequest;
 import com.proveedor.dto.request.StockUpdateRequest;
 import com.proveedor.dto.response.DisponibilidadResponse;
 import com.proveedor.dto.response.ProductoDetalleResponse;
 import com.proveedor.dto.response.ProductoResponse;
 import com.proveedor.entities.Color;
+import com.proveedor.entities.ItemOrdenCompra;
+import com.proveedor.entities.OrdenCompra;
 import com.proveedor.entities.Producto;
 import com.proveedor.entities.Stock;
 import com.proveedor.entities.Talle;
 import com.proveedor.exceptions.CustomException;
 import com.proveedor.repositories.IColorRepository;
+import com.proveedor.repositories.IOrdenCompraRepository;
 import com.proveedor.repositories.IProductoRepository;
 import com.proveedor.repositories.IStockRepository;
 import com.proveedor.repositories.ITalleRepository;
@@ -49,6 +53,12 @@ public class ProductoService {
 
     @Autowired
     private ObjectMapper objectMapper;
+
+    @Autowired
+    private IOrdenCompraRepository ordenCompraRepository;
+
+    @Autowired
+    private Consumer consumer;
 
     private final ModelMapper mapper = new ModelMapper();
 
@@ -129,11 +139,40 @@ public class ProductoService {
     }
 
     public String actualizarStock(Long idProducto, StockUpdateRequest request) {
-        Stock stock = stockRepository.findByProductoIdAndTalleIdAndColorId(idProducto, request.getIdTalle(), request.getIdColor()).orElseThrow(() -> new CustomException("Stock no encontrado", HttpStatus.NOT_FOUND));
+        Stock stock = stockRepository.findByProductoIdAndTalleIdAndColorId(idProducto, request.getIdTalle(), request.getIdColor())
+                .orElseThrow(() -> new CustomException("Stock no encontrado", HttpStatus.NOT_FOUND));
 
         stock.setCantidad(request.getCantidad());
         stockRepository.save(stock);
-        return "Stock actualizado correctamente";
-    }
 
+        List<OrdenCompra> ordenesPausadas = ordenCompraRepository.findByEstado("PAUSADA");
+
+        for (OrdenCompra ordenCompra : ordenesPausadas) {
+            boolean puedeCumplir = true;
+            List<String> faltantesStock = new ArrayList<>();
+
+            for (ItemOrdenCompra item : ordenCompra.getItems()) {
+                Stock itemStock = stockRepository.findByProductoIdAndTalleIdAndColorId(
+                        item.getProducto().getId(), item.getTalle().getId(), item.getColor().getId()).orElse(null);
+
+                if (itemStock == null || itemStock.getCantidad() < item.getCantidad()) {
+                    puedeCumplir = false;
+                    faltantesStock.add("Producto " + item.getProducto().getCodigo() + ": stock insuficiente.");
+                }
+            }
+
+            if (puedeCumplir) {
+                ordenCompra.setEstado("ACEPTADA");
+                ordenCompra.setObservaciones("Orden de compra aceptada.");
+                consumer.aprobarOrdenYDespachar(ordenCompra);
+            } else {
+                ordenCompra.setEstado("PAUSADA");
+                ordenCompra.setObservaciones(String.join(", ", faltantesStock));
+            }
+            ordenCompraRepository.save(ordenCompra);
+        }
+
+        return "Stock actualizado correctamente";
+
+    }
 }
