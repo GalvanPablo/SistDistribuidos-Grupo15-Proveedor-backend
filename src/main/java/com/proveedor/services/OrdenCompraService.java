@@ -11,6 +11,7 @@ import org.springframework.stereotype.Service;
 import com.proveedor.dto.response.ItemResponse;
 import com.proveedor.dto.response.OrdenCompraResponse;
 import com.proveedor.entities.OrdenCompra;
+import com.proveedor.entities.Producto;
 import com.proveedor.exceptions.CustomException;
 import com.proveedor.repositories.IOrdenCompraRepository;
 
@@ -27,9 +28,18 @@ public class OrdenCompraService {
         return ordenCompraRepository.findAll().stream().map(orden -> mapper.map(orden, OrdenCompraResponse.class)).collect(Collectors.toList());
     }
 
-    public ItemResponse detalleOrdenCompra(Long idOrdenCompra){
-         OrdenCompra ordenCompra = ordenCompraRepository.findById(idOrdenCompra).orElseThrow(() -> new CustomException("Orden de compra no encontrada", HttpStatus.NOT_FOUND));
-        return null;
+    public List<ItemResponse> detalleOrdenCompra(Long idOrdenCompra) {
+        OrdenCompra ordenCompra = ordenCompraRepository.findById(idOrdenCompra).orElseThrow(() -> new CustomException("Orden de compra no encontrada", HttpStatus.NOT_FOUND));
+
+        return ordenCompra.getItems().stream().map(item -> {
+            Producto producto = item.getProducto();
+            ItemResponse itemResponse = new ItemResponse();
+            itemResponse.setNombre(producto.getNombre());
+            itemResponse.setColor(item.getColor().getNombre());
+            itemResponse.setTalle(item.getTalle().getNombre());
+            itemResponse.setCantidad(item.getCantidad());
+            return itemResponse;
+        }).collect(Collectors.toList());
     }
     
 }

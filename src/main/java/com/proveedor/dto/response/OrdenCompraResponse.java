@@ -11,7 +11,6 @@ public class OrdenCompraResponse {
     private String estado;
     private Date fechaRecepcion;
     private Date fechaSolicitud;
-    private Date fechaEstimadaEnvio;
     private String observaciones;
     private String codigoTienda;
     
