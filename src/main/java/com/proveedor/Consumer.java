@@ -203,8 +203,9 @@ public class Consumer {
 
         Map<String, Object> solicitud = new HashMap<>();
         solicitud.put("codigoTienda", ordenCompra.getCodigoTienda());
-        solicitud.put("estado", ordenCompra.getEstado());
+        solicitud.put("estado", "ACEPTADA");
         solicitud.put("idOrdenCompra", ordenCompra.getId());
+        solicitud.put("observaciones", "");
 
         String mensajeSolicitud;
         try {
