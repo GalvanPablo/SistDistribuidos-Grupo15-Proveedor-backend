@@ -68,6 +68,12 @@ public class Consumer {
         procesarOrdenDeCompra(mensaje);
     }
 
+    @KafkaListener(topics = "recepcion")
+    public void recepcionDeMercaderia(String mensaje){
+        log.info(mensaje);
+        actualizarFechaRecepcion(mensaje);
+    }
+
     public void procesarOrdenDeCompra(String mensaje) {
         try {
             OrdenCompraRequest ordenRequest = objectMapper.readValue(mensaje, OrdenCompraRequest.class);
@@ -207,5 +213,10 @@ public class Consumer {
             throw new CustomException("Error al procesar la solicitud", HttpStatus.INTERNAL_SERVER_ERROR);
         }
         kafkaTemplate.send("solicitudes", mensajeSolicitud);
+    }
+
+    public void actualizarFechaRecepcion(String mensaje){
+        log.info("entre al actualizar fecha bien");
+        //DEBERIA RECIBIR ID ORDEN + FECHA RECEPCION 
     }
 }
