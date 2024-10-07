@@ -94,19 +94,12 @@ public class Consumer {
                     continue;
                 }
 
+                // La consigna no pide validar colores, pero en caso de que lo pida acá
+                // deberiamos dejar el orElse null y agregar el mensaje a la lista de errores
                 Color color = colorRepository.findByNombre(itemRequest.getColor())
-                        .orElse(null);
-                if (color == null) {
-                    errores.add("Producto " + itemRequest.getCodigoProducto() + ": color " + itemRequest.getColor() + " no encontrado.");
-                    continue;
-                }
-
+                        .orElseThrow(() -> new CustomException("Color no econtrado", HttpStatus.NOT_FOUND));
                 Talle talle = talleRepository.findByNombre(itemRequest.getTalle())
-                        .orElse(null);
-                if (talle == null) {
-                    errores.add("Producto " + itemRequest.getCodigoProducto() + ": talle " + itemRequest.getTalle() + " no encontrado.");
-                    continue;
-                }
+                        .orElseThrow(() -> new CustomException("Talle no econtrado", HttpStatus.NOT_FOUND));
 
                 ItemOrdenCompra itemOrdenCompra = new ItemOrdenCompra();
                 itemOrdenCompra.setOrdenDeCompra(ordenCompra);
@@ -115,10 +108,8 @@ public class Consumer {
                 itemOrdenCompra.setColor(color);
                 itemOrdenCompra.setTalle(talle);
 
-                Stock stock = stockRepository.findByProductoIdAndTalleIdAndColorId(
-                        producto.getId(), talle.getId(), color.getId()
-                ).orElse(null);
-
+                Stock stock = stockRepository.findByProductoIdAndTalleIdAndColorId(producto.getId(), talle.getId(), color.getId())
+                        .orElse(null);
                 if (stock == null || stock.getCantidad() < itemRequest.getCantidad()) {
                     faltantesStock.add("Producto " + itemRequest.getCodigoProducto() + ": stock insuficiente.");
                 }
