@@ -238,6 +238,8 @@ public class Consumer {
             }
 
             ordenCompra.setFechaRecepcion(fechaRecepcion);
+            ordenCompra.setEstado("RECIBIDA");
+            ordenCompra.setObservaciones("Orden de compra recibida.");
             ordenCompraRepository.save(ordenCompra);
 
         } catch (JsonProcessingException e) {
