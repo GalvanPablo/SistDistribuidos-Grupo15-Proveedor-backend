@@ -1,5 +1,6 @@
 package com.proveedor;
 
+import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
@@ -14,6 +15,7 @@ import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.proveedor.dto.request.ItemOrdenCompraRequest;
 import com.proveedor.dto.request.OrdenCompraRequest;
@@ -69,7 +71,7 @@ public class Consumer {
     }
 
     @KafkaListener(topics = "recepcion")
-    public void recepcionDeMercaderia(String mensaje){
+    public void recepcionDeMercaderia(String mensaje) {
         log.info(mensaje);
         actualizarFechaRecepcion(mensaje);
     }
@@ -216,8 +218,31 @@ public class Consumer {
         kafkaTemplate.send("solicitudes", mensajeSolicitud);
     }
 
-    public void actualizarFechaRecepcion(String mensaje){
-        log.info("entre al actualizar fecha bien");
-        //DEBERIA RECIBIR ID ORDEN + FECHA RECEPCION 
+    public void actualizarFechaRecepcion(String mensaje) {
+        log.info("LLEGUE AL ACTUALIZAR RECEPCION");
+
+        try {
+            JsonNode jsonNode = objectMapper.readTree(mensaje);
+            Long idOrdenCompra = jsonNode.get("idOrdenCompra").asLong();
+            String fechaRecepcionStr = jsonNode.get("fechaRecepcion").asText();
+
+            OrdenCompra ordenCompra = ordenCompraRepository.findById(idOrdenCompra)
+                    .orElseThrow(() -> new CustomException("Orden de compra no encontrada", HttpStatus.NOT_FOUND));
+
+            SimpleDateFormat formateo = new SimpleDateFormat("yyyy-MM-dd");
+            Date fechaRecepcion;
+            try {
+                fechaRecepcion = formateo.parse(fechaRecepcionStr);
+            } catch (ParseException e) {
+                throw new CustomException("Fecha de recepción inválida", HttpStatus.BAD_REQUEST);
+            }
+
+            ordenCompra.setFechaRecepcion(fechaRecepcion);
+            ordenCompraRepository.save(ordenCompra);
+
+        } catch (JsonProcessingException e) {
+            log.error("Error al procesar el mensaje");
+        }
     }
+
 }
