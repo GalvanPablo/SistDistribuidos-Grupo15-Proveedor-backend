@@ -5,6 +5,7 @@ import java.util.List;
 
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Entity;
+import jakarta.persistence.FetchType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.OneToMany;
@@ -30,7 +31,7 @@ public class OrdenCompra {
     @Temporal(TemporalType.DATE)
     private Date fechaRecepcion;
     
-    @OneToMany(mappedBy = "ordenDeCompra", cascade = CascadeType.ALL)
+    @OneToMany(mappedBy = "ordenDeCompra", cascade = CascadeType.ALL, fetch = FetchType.EAGER)
     private List<ItemOrdenCompra> items;
     
     @OneToOne(cascade = CascadeType.ALL)

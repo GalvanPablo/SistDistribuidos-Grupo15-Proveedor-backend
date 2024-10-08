@@ -13,6 +13,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -218,6 +219,7 @@ public class Consumer {
         kafkaTemplate.send("solicitudes", mensajeSolicitud);
     }
 
+    @Transactional
     public void actualizarFechaRecepcion(String mensaje) {
         log.info("LLEGUE AL ACTUALIZAR RECEPCION");
 
@@ -235,6 +237,24 @@ public class Consumer {
                 fechaRecepcion = formateo.parse(fechaRecepcionStr);
             } catch (ParseException e) {
                 throw new CustomException("Fecha de recepción inválida", HttpStatus.BAD_REQUEST);
+            }
+
+            List<ItemOrdenCompra> items = ordenCompra.getItems();
+            for(ItemOrdenCompra item : items){           
+                Stock stock = stockRepository.findByProductoIdAndTalleIdAndColorId(item.getProducto().getId(), item.getTalle().getId(), item.getColor().getId())
+                    .orElseThrow(() -> new CustomException("Stock no encontrado", HttpStatus.NOT_FOUND));
+
+                    log.info("=============================================================================================================");
+                    log.info("{}",stock);
+                    log.info("CANTIDAD STOCK {}  - CANTIDAD ITEM {}", stock.getCantidad(), item.getCantidad());
+                    log.info("=============================================================================================================");
+
+                    if (stock.getCantidad() < item.getCantidad()) {
+                        throw new CustomException("Stock insuficiente para el producto", HttpStatus.BAD_REQUEST);
+                    }
+
+                    stock.setCantidad(stock.getCantidad() - item.getCantidad()); 
+                    stockRepository.save(stock);
             }
 
             ordenCompra.setFechaRecepcion(fechaRecepcion);
